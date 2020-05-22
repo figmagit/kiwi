@@ -131,9 +131,11 @@ namespace kiwi {
 
   class BinarySchema {
   public:
-    bool parse(ByteBuffer &bb);
+    template <typename InputByteBuffer>
+    bool parse(InputByteBuffer &bb);
     bool findDefinition(const char *definition, uint32_t &index) const;
-    bool skipField(ByteBuffer &bb, uint32_t definition, uint32_t field) const;
+    template <typename InputByteBuffer>
+    bool skipField(InputByteBuffer &bb, uint32_t definition, uint32_t field) const;
 
   private:
     enum {
@@ -164,7 +166,8 @@ namespace kiwi {
       Array<Field> fields;
     };
 
-    bool _skipField(ByteBuffer &bb, const Field &field) const;
+    template <typename InputByteBuffer>
+    bool _skipField(InputByteBuffer &bb, const Field &field) const;
 
     MemoryPool _pool;
     Array<Definition> _definitions;
@@ -411,7 +414,8 @@ namespace kiwi {
 
   ////////////////////////////////////////////////////////////////////////////////
 
-  bool kiwi::BinarySchema::parse(ByteBuffer &bb) {
+  template <typename InputByteBuffer>
+  bool kiwi::BinarySchema::parse(InputByteBuffer &bb) {
     uint32_t definitionCount = 0;
 
     _definitions = {};
@@ -464,7 +468,8 @@ namespace kiwi {
     return false;
   }
 
-  bool kiwi::BinarySchema::skipField(ByteBuffer &bb, uint32_t definition, uint32_t field) const {
+  template <typename InputByteBuffer>
+  bool kiwi::BinarySchema::skipField(InputByteBuffer &bb, uint32_t definition, uint32_t field) const {
     if (definition < _definitions.size()) {
       for (auto &item : _definitions[definition].fields) {
         if (item.value == field) {
@@ -476,7 +481,8 @@ namespace kiwi {
     return false;
   }
 
-  bool kiwi::BinarySchema::_skipField(ByteBuffer &bb, const Field &field) const {
+  template <typename InputByteBuffer>
+  bool kiwi::BinarySchema::_skipField(InputByteBuffer &bb, const Field &field) const {
     uint32_t count = 1;
 
     if (field.isArray && !bb.readVarUint(count)) {
