@@ -25,5 +25,8 @@
     "skew": "0.7.43",
     "terser": "4.6.3",
     "typescript": "3.7.4"
+  },
+  "dependencies": {
+    "kiwi-schema": "^0.4.7"
   }
 }
