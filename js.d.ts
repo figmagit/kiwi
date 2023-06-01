@@ -1,3 +1,4 @@
 import { Schema } from "./schema";
-export declare function compileSchemaJS(schema: Schema): string;
+import { ByteBuffer } from "./bb";
+export declare function compileSchemaJS(schema: Schema | Uint8Array | string | ByteBuffer): string;
 export declare function compileSchema(schema: Schema): any;
