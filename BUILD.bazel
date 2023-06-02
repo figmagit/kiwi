@@ -1,0 +1,100 @@
+load("@aspect_rules_js//js:defs.bzl", "js_binary")
+load("@aspect_rules_ts//ts:defs.bzl", "ts_project")
+load("@aspect_rules_esbuild//esbuild:defs.bzl", "esbuild")
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+load("@aspect_bazel_lib//lib:write_source_files.bzl", "write_source_files")
+
+ts_project(
+    name = "js",
+    srcs = glob(["js/*.ts"]),
+    declaration = True,
+    tsconfig = "js/tsconfig.json",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//:node_modules/@types/node",
+    ],
+)
+
+# This is used to generate the checked in js/kiwic bundled binary, which is in
+# turn used by various downstream consumers.
+# TODO: Instead of checking in the generated bundle, we should convert the downstream
+# consumers to bazel and have them use the `kiwic` macro in `kiwic.bzl`. Then we can
+# delete this target.
+esbuild(
+    name = "kiwic-node",
+    srcs = glob(["js/*.ts"]),
+    entry_point = "js/cli.ts",
+    output = "kiwic-bundle",
+    platform = "node",
+)
+
+# Workaround for https://github.com/aspect-build/rules_esbuild/issues/66
+genrule(
+    name = "kiwic-node-sed",
+    srcs = [":kiwic-bundle"],
+    outs = ["kiwic-bundle-clean"],
+    cmd = "sed 's#// .*share/kiwi/js#// share/kiwi/js#' $(execpath :kiwic-bundle) > $@",
+)
+
+write_source_files(
+    name = "update_kiwic",
+    executable = True,
+    files = {"js/kiwic": "kiwic-bundle-clean"},
+)
+
+# This is used by viewerbuild. It's concatenated into the viewer bundle.
+esbuild(
+    name = "kiwic-browser",
+    srcs = glob(["js/*.ts"]),
+    config = {
+        "globalName": "kiwi",
+    },
+    entry_point = "js/browser.ts",
+    minify = True,
+    output = "browser.min.js",
+    platform = "browser",
+    sourcemap = "external",
+)
+
+# Viwer expects to be able to find various generated files in the source dir.
+# TODO: convert viewerbuild to Bazel and delete this.
+write_file(
+    name = "gen_copy_viewer_sources",
+    out = "copy_viewer_sources.sh",
+    content = [
+        "#!/usr/bin/env bash",
+        "cd $BUILD_WORKSPACE_DIRECTORY",
+        "bindir=$(bazel info bazel-genfiles)",
+        "cp -fv $bindir/share/kiwi/js/*.js share/kiwi/js",
+        "cp -fv $bindir/share/kiwi/browser.min.js share/kiwi/js/browser.min.js",
+    ],
+)
+
+sh_binary(
+    name = "copy_viewer_sources",
+    srcs = ["copy_viewer_sources.sh"],
+    data = [
+        ":browser.min.js",
+        ":js",
+    ],
+)
+
+js_binary(
+    name = "kiwic",
+    data = [":js"],
+    entry_point = "js/cli.js",
+    visibility = ["//visibility:public"],
+)
+
+copy_to_bin(
+    name = "bin/kiwi.sk",
+    srcs = ["kiwi.sk"],
+    visibility = ["//visibility:public"],
+)
+
+copy_to_bin(
+    name = "bin/typedarray.sk",
+    srcs = ["typedarray.sk"],
+    visibility = ["//visibility:public"],
+)

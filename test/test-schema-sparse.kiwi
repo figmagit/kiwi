@@ -1,0 +1,24 @@
+package test_sparse;
+
+enum Enum {
+  A = 100;
+  B = 200;
+}
+
+struct ByteStruct { byte x; }
+
+message Message {
+  uint a = 1;
+  float b = 2;
+  uint[] c = 3;
+  Enum d = 4;
+  ByteStruct e = 5;
+  uint f = 6;
+  string g = 7;
+  bool h = 8;
+  Message[] i = 9;
+}
+
+message Parent {
+  Message a = 1;
+}

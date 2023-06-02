@@ -96,6 +96,72 @@ def main {
     check(-0x80000000, [0xFF, 0xFF, 0xFF, 0xFF, 0x0F])
   })
 
+  it("struct uint64", => {
+    var arrToString = (inp Uint8Array) string => {
+      var ret = ""
+      for i = 0; i < inp.length; i++ {
+        ret += inp[i].toString
+      }
+      return ret
+    }
+    var check = (i string, o List<int>) => {
+      var message = test.Uint64Struct.new
+      message.x = i
+      assert.deepEqual(Uint8Array.new(message.encode), Uint8Array.new(o))
+      assert.deepEqual(test.Uint64Struct.decode(Uint8Array.new(o)), message)
+    }
+
+    check("0", [0x00])
+    check("1", [0x01])
+    check("2", [0x02])
+    check("127", [0x7f])
+    check("128", [0x80, 0x01])
+    check("129", [0x81, 0x01])
+    check("256", [0x80, 0x02])
+    check("257", [0x81, 0x02])
+    check("383", [0xff, 0x02])
+    check("384", [0x80, 0x03])
+    check("511", [0xff, 0x03])
+    check("512", [0x80, 0x04])
+    check("32767", [0xff, 0xff, 0x01])
+    check("32768", [0x80, 0x80, 0x02])
+    check("2147483647", [0xff, 0xff, 0xff, 0xff, 0x07])
+    check("2147483648", [0x80, 0x80, 0x80, 0x80, 0x08])
+    check("18446744073709551615", [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff])
+  })
+
+  it("struct int64", =>  {
+    var check = (i string, o List<int>) => {
+      var message = test.Int64Struct.new
+      message.x = i
+      assert.deepEqual(Uint8Array.new(message.encode), Uint8Array.new(o))
+      assert.deepEqual(test.Int64Struct.decode(Uint8Array.new(o)), message)
+    }
+
+    check("0", [0x00])
+    check("-1", [0x01])
+    check("1", [0x02])
+    check("-2", [0x03])
+    check("2", [0x04])
+    check("63", [0x7e])
+    check("-63", [0x7d])
+    check("-64", [0x7f])
+    check("64", [0x80, 0x01])
+    check("-16383", [0xfd, 0xff, 0x01])
+    check("16383", [0xfe, 0xff, 0x01])
+    check("-16384", [0xff, 0xff, 0x01])
+    check("16384", [0x80, 0x80, 0x02])
+    check("-1073741823", [0xfd, 0xff, 0xff, 0xff, 0x07])
+    check("1073741823", [0xfe, 0xff, 0xff, 0xff, 0x07])
+    check("-1073741824", [0xff, 0xff, 0xff, 0xff, 0x07])
+    check("1073741824", [0x80, 0x80, 0x80, 0x80, 0x08])
+    check("-2147483647", [0xfd, 0xff, 0xff, 0xff, 0x0f])
+    check("2147483647", [0xfe, 0xff, 0xff, 0xff, 0x0f])
+    check("-2147483648", [0xff, 0xff, 0xff, 0xff, 0x0f])
+    check("9223372036854775807", [0xfe, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff])
+    check("-9223372036854775808", [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff])
+  })
+
   it("struct float", => {
     var check = (i double, o List<int>) => {
       var message = test.FloatStruct.new
@@ -212,6 +278,54 @@ def main {
 
     check(0, [0])
     check(12345678, [1, 156, 133, 227, 11, 0])
+  })
+
+    it("message uint", => {
+    var check = (i int, o List<int>) => {
+      var message = test.UintMessage.new
+      if i != 0 { message.x = i }
+      assert.deepEqual(Uint8Array.new(message.encode), Uint8Array.new(o))
+      assert.deepEqual(test.UintMessage.decode(Uint8Array.new(o)), message)
+    }
+
+    check(0, [0])
+    check(12345678, [1, 206, 194, 241, 5, 0])
+  })
+
+  it("message int", => {
+    var check = (i int, o List<int>) => {
+      var message = test.IntMessage.new
+      if i != 0 { message.x = i }
+      assert.deepEqual(Uint8Array.new(message.encode), Uint8Array.new(o))
+      assert.deepEqual(test.IntMessage.decode(Uint8Array.new(o)), message)
+    }
+
+    check(0, [0])
+    check(12345678, [1, 156, 133, 227, 11, 0])
+  })
+
+  it("message uint64", => {
+    var check = (i string, o List<int>) => {
+      var message = test.Uint64Message.new
+      if i != "" { message.x = i }
+      assert.deepEqual(Uint8Array.new(message.encode), Uint8Array.new(o))
+      assert.deepEqual(test.Uint64Message.decode(Uint8Array.new(o)), message)
+    }
+
+    check("1234567898", [1, 218, 133, 216, 204, 4, 0])
+  })
+
+  it("message int64", => {
+    var check = (i string, o List<int>) => {
+      var message = test.Int64Message.new
+      if i != "" { message.x = i }
+      assert.deepEqual(Uint8Array.new(message.encode), Uint8Array.new(o))
+      assert.deepEqual(test.Int64Message.decode(Uint8Array.new(o)), message)
+    }
+
+    # check({}, [0])
+    check("-1", [1, 1, 0])
+    check("1234567898", [1, 180, 139, 176, 153, 9, 0])
   })
 
   it("message float", => {

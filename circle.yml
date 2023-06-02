@@ -1,0 +1,15 @@
+jobs:
+  share-kiwi:
+    requires:
+      globs:
+        - 'share/kiwi/**'
+        # Contains files symlinked from share/kiwi/test
+        - 'fullscreen/lib/kiwi/**'
+    executor: default
+    steps:
+      - start_job
+      - run:
+          name: Test Kiwi
+          command: |
+            bazel test //share/kiwi/...
+      - finish_job

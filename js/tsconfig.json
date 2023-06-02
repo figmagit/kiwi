@@ -2,6 +2,9 @@
   "compilerOptions": {
     "target": "es6",
     "module": "commonjs",
-    "strict": true
+    "strict": true,
+    "useUnknownInCatchVariables": false,
+    "declaration": true,
+    "types": ["node"]
   }
 }

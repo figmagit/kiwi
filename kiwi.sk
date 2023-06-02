@@ -105,6 +105,43 @@ namespace Kiwi {
       return (value & 1) != 0 ? ~(value >>> 1) : value >>> 1
     }
 
+  def _readVarUint64Bin string {
+    var byteCount = 0
+    var binStr = ""
+    while true {
+      var byte = readByte
+      if byteCount < 8 {
+        var binStrByte = _convertBase((byte & 127).toString, 10, 2)
+        binStr = "0".repeat(7 - binStrByte.count) + binStrByte + binStr
+      } else {
+        binStr = _convertBase(byte.toString, 10, 2) + binStr
+        break
+      }
+      byteCount += 1
+      if (byte & 128) == 0 {
+        break
+      }
+    }
+    return binStr
+  }
+
+  def readVarUint64 string {
+    var temp = _readVarUint64Bin
+    return _convertBase(temp, 2, 10)
+  }
+
+  # see encoding strategy at writeVarInt64()– this function does the opposite
+  def readVarInt64 string {
+    var binValue = _readVarUint64Bin
+    if binValue.slice(Math.max(0, binValue.count - 1)) == "1" {
+      var binArr = _parseToDigitsArray(binValue.slice(0, Math.max(0, binValue.count - 1)), 2)
+      binArr = _add(binArr, [1], 2)
+      return "-" + _convertBase(_parseFromDigitsArray(binArr, 2), 2, 10)
+    } else {
+      return _convertBase(binValue.slice(0, Math.max(0, binValue.count - 1)), 2, 10)
+    }
+  }
+
     def readString string {
       var result = ""
 
@@ -201,6 +238,178 @@ namespace Kiwi {
       writeVarUint((value << 1) ^ (value >> 31))
     }
 
+    # returns -1 if incorrect input
+    def _parseInt(binValue string, base int) int {
+      var value = 0
+      for i = 0; i < binValue.count; i++ {
+        var currBin = binValue[binValue.count - i - 1]
+        if currBin < 48 || currBin > 57 {
+          return -1
+        }
+        value += (binValue[binValue.count - i - 1] - 48) * (Math.pow(base, i) as int)
+      }
+      return value
+    }
+
+    def _writeVarUint64Helper(binValue string) {
+    if binValue  == "" {
+      return
+    }
+
+    var byteCount = 0
+    while true {
+      if byteCount > 7 {
+        var byte = _parseInt(binValue.slice(Math.max(binValue.count - 8, 0)), 2)
+        binValue = binValue.slice(0, Math.max(binValue.count - 8, 0))
+        writeByte(byte)
+        break
+      }
+      var byte = _parseInt(binValue.slice(Math.max(binValue.count - 7, 0)), 2)
+      binValue = binValue.slice(0, Math.max(binValue.count - 7, 0))
+      writeByte(binValue != "" ? byte | 128 : byte)
+      byteCount += 1
+      if binValue == "" {
+        break
+      }
+    }
+  }
+
+  def writeVarUint64(value string) {
+    value = _cleanNumericString(value)
+    var binValue = _convertBase(value, 10, 2)
+    _writeVarUint64Helper(binValue)
+  }
+
+  # Given a binary string, this subtract 1 and return result
+  def _subtractOne(digits string) string {
+    var borrow = 1
+    var result = digits.codePoints
+    for i = result.count - 1; i >= 0; i-- {
+      if result[i] - 48 < borrow {
+        result[i] = 49
+      } else {
+        result[i] = 48
+        borrow = 0
+        if i == 0 {
+          result = result.slice(1)
+        }
+        break
+      }
+    }
+    return string.fromCodePoints(result) # Removes extra prefixed zeroes
+  }
+
+  def _cleanNumericString(value string) string {
+    var numericString = ""
+    for i = 0; i < value.count; i++ {
+      const char = value[i]
+      if (char >= '0' && char <= '9') || (i == 0 && char == '-') {
+        numericString += string.fromCodePoint(char)
+      }
+    }
+    return numericString
+  }
+
+  # Variable length encoding is done as follows
+  # Move the sign bit to the RHS
+  # If value is negative, flip all the bits (except sign bit) and subtract 2 (to skip over the sign bit on the right)
+  def writeVarInt64(value string) {
+    value = _cleanNumericString(value)
+    var binValue = ""
+    if value == "" {
+      return # FLAG error
+    }
+    if value[0] != '-' {
+      binValue = _convertBase(value, 10, 2) + "0"
+    } else {
+      binValue = _convertBase(value.slice(1), 10, 2)
+      if binValue == "0" || binValue == "" {
+        writeVarUint64("0")
+        return
+      }
+      binValue = _subtractOne(binValue) + "1"
+    }
+    _writeVarUint64Helper(binValue)
+  }
+    var arrToString = (inp List<int>) string => {
+      var ret = ""
+      for i = 0; i < inp.count; i++ {
+        ret += inp[i].toString
+      }
+      return ret
+    }
+  # add(), multiplyByNumber(), parseToDigitsArray(), parseFromDigitsArray(), are all helper functions for convertBase()
+  def _add(x List<int>, y List<int>, base int) List<int> {
+    const z List<int> = []
+    const n = Math.max(x.count, y.count)
+    var carry = 0
+    var i = 0
+    while i < n || (carry != 0) {
+      const xi = i < x.count ? x[i] : 0
+      const yi = i < y.count ? y[i] : 0
+      const zi = carry + xi + yi
+      z.append(zi % base)
+      carry = Math.floor(zi / base) as int
+      i++
+    }
+
+    return z
+  }
+
+  def _multiplyByNumber(num int, x List<int>, base int) List<int> {
+    if num < 0 { return [] }
+    if num == 0 { return [] }
+
+    var result List<int> = []
+    var power = x
+    while true {
+      if (num & 1) != 0 {
+        result = _add(result, power, base)
+      }
+      num = num >> 1
+      if num == 0 { break }
+      power = _add(power, power, base)
+    }
+
+    return result
+  }
+
+  def _parseToDigitsArray(str string, base int) List<int> {
+    const digits = str.toString.split("")
+    const ary List<int> = []
+    for i = digits.count - 1; i >= 0; i-- {
+      const n = _parseInt(digits[i], base)
+      if n == -1 { return [] }
+      ary.append(n)
+    }
+    return ary
+  }
+
+    def _parseFromDigitsArray(arr List<int>, base int) string {
+      var out = ""
+      for i = arr.count - 1; i >= 0; i-- {
+        out += arr[i].toString
+      }
+      return out
+    }
+
+    # Used to help convert numerical strings between bases.
+    # This is a necessary step when encoding 64bit int js strings into a byte buffer
+    def _convertBase(str string, fromBase int, toBase int) string {
+      const digits = _parseToDigitsArray(str, fromBase)
+      if digits == null { return ""}
+
+      var outArray List<int> = [0]
+      var power List<int> = [1]
+      for i = 0; i < digits.count; i++ {
+        if digits[i] != 0 {
+          outArray = _add(outArray, _multiplyByNumber(digits[i], power, toBase), toBase)
+        }
+        power = _multiplyByNumber(fromBase, power, toBase)
+      }
+      return _parseFromDigitsArray(outArray, toBase)
+    }
+
     def writeString(value string) {
       var iterator = Unicode.StringIterator.INSTANCE.reset(value, 0)
 
@@ -295,6 +504,7 @@ namespace Kiwi {
         switch field.type {
           case TYPE_BOOL, TYPE_BYTE { bb.readByte }
           case TYPE_INT, TYPE_UINT { bb.readVarUint }
+          case TYPE_INT64, TYPE_UINT64 {bb.readVarUint64 }
           case TYPE_FLOAT { bb.readVarFloat }
           case TYPE_STRING { while bb.readByte != 0 {} }
 
@@ -327,6 +537,8 @@ namespace Kiwi {
     const TYPE_UINT = -4
     const TYPE_FLOAT = -5
     const TYPE_STRING = -6
+    const TYPE_INT64 = -7
+    const TYPE_UINT64 = -8
 
     class Field {
       const name string

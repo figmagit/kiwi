@@ -68,3 +68,8 @@ Pick a language:
 * [C++](./examples/cpp.md)
 * [Rust](./examples/rust.md)
 * [Skew](./examples/skew.md)
+
+
+## Updates
+
+When making changes to `kiwic`, you can force `kiwic` to be updated by running: `bazel run //share/kiwi:update_kiwic`.

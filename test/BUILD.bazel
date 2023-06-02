@@ -1,0 +1,263 @@
+load("//share/kiwi:kiwic.bzl", "kiwic")
+load("//bazel/rules:mocha.bzl", "mocha_test")
+load("@npm//:skew/package_json.bzl", skew_bin = "bin")
+
+## JS
+
+load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
+load("//bazel/rules:copy_to_workspace.bzl", "copy_to_workspace")
+
+mocha_test(
+    name = "js_test",
+    args = ["$(location test.js)"],
+    data = [
+        "test.js",
+        "test-schema.kiwi",
+        "test-schema-dedup.kiwi",
+        "test-schema-large.kiwi",
+        "//share/kiwi:js",
+    ],
+)
+
+kiwic(
+    src = "test-schema.kiwi",
+    format = "js",
+)
+
+kiwic(
+    name = "test-schema-dedup",
+    src = "test-schema-dedup.kiwi",
+    out = "test-schema-dedup.js",
+    dedup = [
+        "DuplicatedStruct",
+        "DuplicatedMessage",
+        "DuplicatedSuperMessage",
+    ],
+    format = "js",
+)
+
+kiwic(
+    name = "test-schema-dedup-arrays",
+    src = "test-schema-dedup.kiwi",
+    out = "test-schema-dedup-arrays.js",
+    dedup = [
+        "DuplicatedStruct[]",
+        "DuplicatedMessage[]",
+        "DuplicatedSuperMessage",
+    ],
+    format = "js",
+)
+
+## TS
+
+kiwic(
+    src = "test-schema.kiwi",
+    format = "ts",
+)
+
+## C++
+
+cc_library(
+    name = "kiwi",
+    srcs = [
+        "kiwi.cpp",
+        "kiwi.h",
+    ],
+    defines = ["KIWI_TESTS=1"],
+    includes = ["share/kiwi/test"],
+)
+
+kiwic(
+    src = "test-schema.kiwi",
+    cpp_copyable = [
+        "BoolMessage",
+        "ByteMessage",
+        "IntMessage",
+        "UintMessage",
+        "FloatMessage",
+        "StringMessage",
+        "CompoundMessage",
+        "NestedMessage",
+        "ByteArrayMessage",
+    ],
+    format = "cpp",
+)
+
+kiwic(
+    src = "test1-schema.kiwi",
+    format = "cpp",
+)
+
+kiwic(
+    src = "test2-schema.kiwi",
+    format = "cpp",
+)
+
+kiwic(
+    src = "test-schema-large.kiwi",
+    format = "cpp",
+)
+
+kiwic(
+    src = "test-schema-sparse.kiwi",
+    cpp_copyable = ["Message"],
+    cpp_sparse = ["Message"],
+    format = "cpp",
+)
+
+kiwic(
+    src = "test1-schema.kiwi",
+    format = "binary",
+)
+
+kiwic(
+    src = "test2-schema.kiwi",
+    format = "binary",
+)
+
+# To run one test, use a command like:
+#   bazel run :cc_test -- [catch2 flags here]
+# For example, to filter to specific test cases:
+#   bazel run :cc_test -- '*Sparse*'
+cc_test(
+    name = "cc_test",
+    srcs = [
+        "test.cpp",
+        "test-schema.h",
+        "test-schema-large.h",
+        "test-schema-sparse.h",
+        "test1-schema.h",
+        "test2-schema.h",
+    ],
+    # Required for std::optional.
+    # TODO: we should make this the default everywhere.
+    copts = ["-std=c++17"],
+    data = [
+        "test1-schema.bkiwi",
+        "test2-schema.bkiwi",
+    ],
+    includes = ["."],
+    deps = [
+        ":kiwi",
+        "//fullscreen/vendor/Catch2:catch2_main",
+    ],
+)
+
+kiwic(
+    src = "test-schema.kiwi",
+    format = "callback-cpp",
+)
+
+cc_test(
+    name = "callback",
+    srcs = [
+        "test-callback.cpp",
+        "test-schema-callback.h",
+    ],
+    includes = ["."],
+    deps = [":kiwi"],
+)
+
+## Skew
+
+kiwic(
+    src = "test-schema.kiwi",
+    format = "skew",
+)
+
+kiwic(
+    src = "test1-schema.kiwi",
+    format = "skew",
+)
+
+kiwic(
+    src = "test2-schema.kiwi",
+    format = "skew",
+)
+
+kiwic(
+    src = "test-schema-large.kiwi",
+    format = "skew",
+)
+
+skew_bin.skewc(
+    name = "skewc",
+    srcs = [
+        "test.sk",
+        "test-schema.sk",
+        "test-schema-large.sk",
+        "test1-schema.sk",
+        "test2-schema.sk",
+        "//share/kiwi:bin/kiwi.sk",
+        "//share/kiwi:bin/typedarray.sk",
+    ],
+    outs = ["skew_test.js"],
+    args = [
+        "--output-file=../../../$(location skew_test.js)",
+        "../../../$(location test.sk)",
+        "../../../$(location test-schema.sk)",
+        "../../../$(location test-schema-large.sk)",
+        "../../../$(location test1-schema.sk)",
+        "../../../$(location test2-schema.sk)",
+        "../../../$(location //share/kiwi:bin/kiwi.sk)",
+        "../../../$(location //share/kiwi:bin/typedarray.sk)",
+    ],
+)
+
+mocha_test(
+    name = "skew_test",
+    args = ["$(location skew_test.js)"],
+    data = [
+        "skew_test.js",
+        "test1-schema.bkiwi",
+        "test2-schema.bkiwi",
+    ],
+)
+
+kiwic(
+    src = "test-schema.kiwi",
+    out = "test-schema-types.sk",
+    format = "skew-types",
+)
+
+## Binary
+
+kiwic(
+    src = "test-schema.kiwi",
+    format = "binary",
+)
+
+kiwic(
+    src = "test-schema.bkiwi",
+    out = "test-schema-round-trip.kiwi",
+    format = "text",
+)
+
+# We check in generated files so that changes to the generated output can be inspected
+# via diff.
+
+_GENERATED = [
+    v.replace("generated/", "")
+    for v in glob(["generated/*"])
+]
+
+# Create a test target for each file that Bazel should
+# write to the source tree.
+[
+    diff_test(
+        name = "check_" + v,
+        # Make it trivial for devs to understand that if
+        # this test fails, they just need to run the updater
+        failure_message = "Please run:  bazel run //share/kiwi/test:update",
+        file1 = v,
+        file2 = "generated/" + v,
+    )
+    for v in _GENERATED
+]
+
+# This is what you can `bazel run` and it can write to the source folder
+copy_to_workspace(
+    name = "update",
+    srcs = _GENERATED,
+    dst = "share/kiwi/test/generated",
+)

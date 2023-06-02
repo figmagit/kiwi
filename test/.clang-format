@@ -1,0 +1,3 @@
+# C++ files in this directory are generated code, do not format.
+DisableFormat: true
+SortIncludes: false

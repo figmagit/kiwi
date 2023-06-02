@@ -1,9 +1,7 @@
 // This is a small entry point intended for use in the browser
 
-import { decodeBinarySchema } from "./binary";
-import { compileSchema } from "./js";
+import { encodeBinarySchema, decodeBinarySchema } from './binary'
+import { compileSchema } from './js'
+import { parseSchema } from './parser'
 
-export {
-  decodeBinarySchema,
-  compileSchema,
-}
+export { encodeBinarySchema, decodeBinarySchema, compileSchema, parseSchema }

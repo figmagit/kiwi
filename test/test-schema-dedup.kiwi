@@ -1,0 +1,49 @@
+package test_dedup;
+
+struct Struct {
+  string name;
+  int f0;
+  int f1;
+  int f2;
+}
+
+struct DuplicatedStruct {
+  string name;
+  int f0;
+  int f1;
+  int f2;
+}
+
+message Message {
+  string name = 1;
+  int f0 = 2;
+  int f1 = 3;
+  int f2 = 4;
+}
+
+message DuplicatedMessage {
+  string name = 1;
+  int f0 = 2;
+  int f1 = 3;
+  int f2 = 4;
+}
+
+message DuplicatedSuperMessage {
+  string name = 1;
+  Message m = 2;
+  Struct s = 3;
+}
+
+message SuperMessageWithDuplicatedArrays {
+  string name = 1;
+  DuplicatedMessage[] dmArr = 2;
+  DuplicatedStruct[] dsArr = 3;
+}
+
+message SuperSuperMessage {
+  string name = 1;
+  DuplicatedStruct[] dsArr = 2;
+  DuplicatedMessage[] dmArr = 3;
+  DuplicatedSuperMessage[] dsmArr = 4;
+  SuperMessageWithDuplicatedArrays[] smwdaArr = 5;
+}

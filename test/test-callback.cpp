@@ -3,12 +3,13 @@
 
 #include "test-schema-callback.h"
 #include <stdio.h>
+#include <assert.h>
 
 void testRoundTripDeprecatedMessage() {
   puts("testRoundTripDeprecatedMessage");
 
-  kiwi::ByteBuffer bb;
-  test::Writer writer(bb);
+  kiwi::WriteBuffer wb;
+  test::Writer writer(wb);
 
   writer.beginDeprecatedMessage();
   writer.visitDeprecatedMessage_a(123);
@@ -19,19 +20,20 @@ void testRoundTripDeprecatedMessage() {
   writer.visitDeprecatedMessage_c_element(9);
   writer.endDeprecatedMessage();
 
-  kiwi::ByteBuffer bb2;
-  test::Writer writer2(bb2);
+  kiwi::WriteBuffer wb2;
+  test::Writer writer2(wb2);
 
+  kiwi::ByteBuffer bb(wb.data(), wb.size());
   assert(test::parseDeprecatedMessage(bb, writer2));
-  assert(bb.size() == bb2.size());
-  assert(!memcmp(bb.data(), bb2.data(), bb.size()));
+  assert(wb.size() == wb2.size());
+  assert(!memcmp(wb.data(), wb2.data(), wb.size()));
 }
 
 void testRoundTripSortedStruct() {
   puts("testRoundTripSortedStruct");
 
-  kiwi::ByteBuffer bb;
-  test::Writer writer(bb);
+  kiwi::WriteBuffer wb;
+  test::Writer writer(wb);
 
   writer.beginSortedStruct();
 
@@ -75,12 +77,13 @@ void testRoundTripSortedStruct() {
 
   writer.endSortedStruct();
 
-  kiwi::ByteBuffer bb2;
-  test::Writer writer2(bb2);
+  kiwi::WriteBuffer wb2;
+  test::Writer writer2(wb2);
 
+  kiwi::ByteBuffer bb(wb.data(), wb.size());
   assert(test::parseSortedStruct(bb, writer2));
-  assert(bb.size() == bb2.size());
-  assert(!memcmp(bb.data(), bb2.data(), bb.size()));
+  assert(wb.size() == wb2.size());
+  assert(!memcmp(wb.data(), wb2.data(), wb.size()));
 }
 
 int main() {

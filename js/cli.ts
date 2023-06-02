@@ -1,17 +1,17 @@
 #!/usr/bin/env node
 
-import * as fs from 'fs';
-import { compileSchema, compileSchemaJS } from './js';
-import { compileSchemaTypeScript } from './ts';
-import { Schema } from './schema';
-import { compileSchemaCPP } from './cpp';
-import { compileSchemaCallbackCPP } from './cpp-callback';
-import { compileSchemaSkew } from './skew';
-import { encodeBinarySchema, decodeBinarySchema } from './binary';
-import { prettyPrintSchema } from './printer';
-import { parseSchema } from './parser';
-import { ByteBuffer } from './bb';
-import { compileSchemaSkewTypes } from './skew-types';
+import * as fs from 'fs'
+import { compileSchema, compileSchemaJS } from './js'
+import { compileSchemaTypeScript } from './ts'
+import { Schema } from './schema'
+import { compileSchemaCPP } from './cpp'
+import { compileSchemaCallbackCPP } from './cpp-callback'
+import { compileSchemaSkew } from './skew'
+import { encodeBinarySchema, decodeBinarySchema } from './binary'
+import { prettyPrintSchema } from './printer'
+import { parseSchema } from './parser'
+import { ByteBuffer } from './bb'
+import { compileSchemaSkewTypes } from './skew-types'
 
 let usage = [
   '',
@@ -21,9 +21,13 @@ let usage = [
   '',
   '  --help                Print this message.',
   '  --schema [PATH]       The schema file to use.',
+  '  --js-dedup [CSV]      Deduplicate given definitions in decoder (JS/CLI only)',
   '  --js [PATH]           Generate JavaScript code.',
   '  --ts [PATH]           Generate TypeScript type definitions.',
   '  --cpp [PATH]          Generate C++ code (tree style).',
+  '  --cpp-sparse [CSV]    Uses a sparse implementation for the given message types. This saves',
+  '                        memory for messages with lots of uninitialized fields.',
+  '  --cpp-copyable [CSV]  Allows implicit copying of given definitions.',
   '  --callback-cpp [PATH] Generate C++ code (callback style).',
   '  --skew [PATH]         Generate Skew code.',
   '  --skew-types [PATH]   Generate Skew type definitions.',
@@ -43,34 +47,35 @@ let usage = [
   '  kiwic --schema test.kiwi --root-type Test --from-json buffer.json',
   '  kiwic --schema test.kiwi --root-type Test --to-json buffer.bin',
   '',
-].join('\n');
+].join('\n')
 
 function writeFileString(path: string, text: string): void {
   try {
     if (fs.readFileSync(path, 'utf8') === text) {
-      return; // Avoid unnecessarily modifying files
+      return // Avoid unnecessarily modifying files
     }
-  } catch (e) {
-  }
-  fs.writeFileSync(path, text);
+  } catch (e) {}
+  fs.writeFileSync(path, text)
 }
 
 function writeFileBuffer(path: string, buffer: Buffer): void {
   try {
     if (fs.readFileSync(path).equals(buffer)) {
-      return; // Avoid unnecessarily modifying files
+      return // Avoid unnecessarily modifying files
     }
-  } catch (e) {
-  }
-  fs.writeFileSync(path, buffer);
+  } catch (e) {}
+  fs.writeFileSync(path, buffer)
 }
 
 export function main(args: string[]): number {
-  let flags: {[flag: string]: string | null} = {
+  let flags: { [flag: string]: string | null } = {
     '--schema': null,
+    '--js-dedup': null,
     '--js': null,
     '--ts': null,
     '--cpp': null,
+    '--cpp-sparse': null,
+    '--cpp-copyable': null,
     '--callback-cpp': null,
     '--skew': null,
     '--skew-types': null,
@@ -79,120 +84,121 @@ export function main(args: string[]): number {
     '--root-type': null,
     '--to-json': null,
     '--from-json': null,
-  };
+  }
 
   // Parse flags
   for (let i = 0; i < args.length; i++) {
-    let arg = args[i];
+    let arg = args[i]
 
     if (arg === '-h' || arg === '--help' || arg[0] !== '-') {
-      console.log(usage);
-      return 1;
-    }
-
-    else if (arg in flags) {
+      console.log(usage)
+      return 1
+    } else if (arg in flags) {
       if (i + 1 === args.length) {
-        throw new Error('Missing value for ' + JSON.stringify(arg) + ' (use "--help" for usage)');
+        throw new Error('Missing value for ' + JSON.stringify(arg) + ' (use "--help" for usage)')
       }
-      flags[arg] = args[++i];
-    }
-
-    else {
-      throw new Error('Unknown flag ' + JSON.stringify(arg) + ' (use "--help" for usage)');
+      flags[arg] = args[++i]
+    } else {
+      throw new Error('Unknown flag ' + JSON.stringify(arg) + ' (use "--help" for usage)')
     }
   }
 
   // Must have a schema
   if (flags['--schema'] === null) {
-    console.log(usage);
-    return 1;
+    console.log(usage)
+    return 1
   }
 
   // Try loading the schema
-  let buffer = fs.readFileSync(flags['--schema']);
-  let isText = Array.prototype.indexOf.call(buffer, 0) === -1; // Binary schemas will have null-terminated strings
-  let content = isText ? buffer.toString() : new Uint8Array(buffer);
+  let buffer = fs.readFileSync(flags['--schema'])
+  let isText = Array.prototype.indexOf.call(buffer, 0) === -1 // Binary schemas will have null-terminated strings
+  let content = isText ? buffer.toString() : new Uint8Array(buffer)
 
   // Try parsing the schema, pretty-print errors on failure
   try {
-    var parsed: Schema = typeof content === 'string' ? parseSchema(content) : decodeBinarySchema(new ByteBuffer(content));
-    var compiled = compileSchema(parsed);
+    var parsed: Schema = typeof content === 'string' ? parseSchema(content) : decodeBinarySchema(new ByteBuffer(content))
+    var compiled = compileSchema(parsed)
   } catch (e) {
-    if (e && e.message && 'line' in e || 'column' in e) {
-      e.message = flags['--schema'] + ':' + e.line + ':' + e.column + ': error: ' + e.message;
+    if ((e && e.message && 'line' in e) || 'column' in e) {
+      e.message = flags['--schema'] + ':' + e.line + ':' + e.column + ': error: ' + e.message
       if (typeof content === 'string') {
-        e.message += '\n' + content.split('\n')[e.line - 1] + '\n' + new Array(e.column).join(' ') + '^';
+        e.message += '\n' + content.split('\n')[e.line - 1] + '\n' + new Array(e.column).join(' ') + '^'
       }
     }
-    throw e;
+    throw e
   }
 
   // Validate the root type
-  let rootType = flags['--root-type'];
-  if (rootType !== null && !(('encode' + rootType) in compiled && ('decode' + rootType) in compiled)) {
-    throw new Error('Invalid root type: ' + JSON.stringify(rootType));
+  let rootType = flags['--root-type']
+  if (rootType !== null && !('encode' + rootType in compiled && 'decode' + rootType in compiled)) {
+    throw new Error('Invalid root type: ' + JSON.stringify(rootType))
   }
 
   // Generate JavaScript code
   if (flags['--js'] !== null) {
-    writeFileString(flags['--js'], compileSchemaJS(parsed));
+    const dedup = flags['--js-dedup'] !== null ? flags['--js-dedup'].split(',') : []
+    // filter for definitions without "[]" at end
+    const nonArrayDedup: string[] = dedup?.filter((ident) => !!ident.match(/^[A-Za-z_][A-Za-z0-9_]*$/)) || []
+    // filter for definitions with "[]" at end, but then snip off the "[]" before using
+    const arrayDedup: string[] = (dedup?.filter((ident) => !!ident.match(/^[A-Za-z_][A-Za-z0-9_]*\[\]$/)) || []).map((fullName) => fullName.slice(0, fullName.length - 2))
+    writeFileString(flags['--js'], compileSchemaJS(parsed, nonArrayDedup, arrayDedup))
   }
 
   // Generate JavaScript code
   if (flags['--ts'] !== null) {
-    writeFileString(flags['--ts'], compileSchemaTypeScript(parsed));
+    writeFileString(flags['--ts'], compileSchemaTypeScript(parsed))
   }
 
   // Generate C++ code
   if (flags['--cpp'] !== null) {
-    writeFileString(flags['--cpp'], compileSchemaCPP(parsed));
+    const sparseMessages = flags['--cpp-sparse'] ? flags['--cpp-sparse'].split(',') : []
+    const copyableMessages = flags['--cpp-copyable'] ? flags['--cpp-copyable'].split(',') : []
+    writeFileString(flags['--cpp'], compileSchemaCPP(parsed, sparseMessages, copyableMessages))
   }
   if (flags['--callback-cpp'] !== null) {
-    writeFileString(flags['--callback-cpp'], compileSchemaCallbackCPP(parsed));
+    writeFileString(flags['--callback-cpp'], compileSchemaCallbackCPP(parsed))
   }
 
   // Generate Skew code
   if (flags['--skew'] !== null) {
-    writeFileString(flags['--skew'], compileSchemaSkew(parsed));
+    writeFileString(flags['--skew'], compileSchemaSkew(parsed))
   }
   if (flags['--skew-types'] !== null) {
-    writeFileString(flags['--skew-types'], compileSchemaSkewTypes(parsed));
+    writeFileString(flags['--skew-types'], compileSchemaSkewTypes(parsed))
   }
 
   // Generate a binary schema file
   if (flags['--binary'] !== null) {
-    writeFileBuffer(flags['--binary'], Buffer.from(encodeBinarySchema(parsed)));
+    writeFileBuffer(flags['--binary'], Buffer.from(encodeBinarySchema(parsed)))
   }
 
   // Generate a textual schema file
   if (flags['--text'] !== null) {
-    writeFileBuffer(flags['--text'], Buffer.from(prettyPrintSchema(parsed)));
+    writeFileBuffer(flags['--text'], Buffer.from(prettyPrintSchema(parsed)))
   }
 
   // Convert a binary file to JSON
   if (flags['--to-json'] !== null) {
     if (rootType === null) {
-      throw new Error('Missing flag --root-type when using --to-json');
+      throw new Error('Missing flag --root-type when using --to-json')
     }
-    writeFileString(flags['--to-json'] + '.json', JSON.stringify((compiled as any)['decode' + rootType](
-      new Uint8Array(fs.readFileSync(flags['--to-json']))), null, 2) + '\n');
+    writeFileString(flags['--to-json'] + '.json', JSON.stringify((compiled as any)['decode' + rootType](new Uint8Array(fs.readFileSync(flags['--to-json']))), null, 2) + '\n')
   }
 
   // Convert a JSON file to binary
   if (flags['--from-json'] !== null) {
     if (rootType === null) {
-      throw new Error('Missing flag --root-type when using --from-json');
+      throw new Error('Missing flag --root-type when using --from-json')
     }
-    writeFileBuffer(flags['--from-json'] + '.bin', Buffer.from((compiled as any)['encode' + rootType](
-      JSON.parse(fs.readFileSync(flags['--from-json'], 'utf8')))));
+    writeFileBuffer(flags['--from-json'] + '.bin', Buffer.from((compiled as any)['encode' + rootType](JSON.parse(fs.readFileSync(flags['--from-json'], 'utf8')))))
   }
 
-  return 0;
-};
+  return 0
+}
 
 if (require.main === module) {
   // try {
-    process.exit(main(process.argv.slice(2)));
+  process.exit(main(process.argv.slice(2)))
   // } catch (e) {
   //   process.stderr.write((e && e.message || e) + '\n');
   //   process.exit(1);
